@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -95,17 +96,20 @@ func parseTeaType(ttype string) (tea, error) {
 }
 
 func printProgress(remainingTime, totalTime time.Duration) {
+	scale := 10.0
 
-	perc := int((remainingTime.Seconds() / totalTime.Seconds()) * 100)
+	// calculate what percent of the total time has passed
+	perc := (remainingTime.Seconds() / totalTime.Seconds()) * 100
+	// and scale it down
+	percScaled := int(scale - (perc / scale))
 
-	// progess is downscaled to 10 and is counting forward, and remaining time is backwards
-	percScale := 10 - (perc / 10)
-	progressBar := fmt.Sprintf("%s%s", strings.Repeat("#", percScale), strings.Repeat("-", 10-percScale))
+	// generate the progress bar
+	progressBar := strings.Repeat("#", percScaled) + strings.Repeat("-", int(scale)-percScaled)
 
-	progress := fmt.Sprintf("Progress: [%s] (%%%3d) | %3.0f/%3.0f seconds remaining", progressBar, 100-perc, remainingTime.Seconds(), totalTime.Seconds())
+	// and the entire progress line
+	progress := fmt.Sprintf("Progress: [%s] (%3d%%) | %3.0f/%3.0f seconds remaining", progressBar, int(100-perc), remainingTime.Seconds(), totalTime.Seconds())
 
 	fmt.Printf("\r%s", progress)
-	//fmt.Printf("\r%3.0f seconds remaining", remainingTime.Seconds())
 }
 
 func main() {
@@ -114,13 +118,13 @@ func main() {
 	if listTeas {
 		printLogo()
 		printTeas()
-		return
+		os.Exit(0)
 	}
 
 	if durationArg == 0 && tTypeArg == "" {
 		fmt.Errorf("No tea type/custom duration supplied!\n")
 		flag.Usage()
-		return
+		os.Exit(1)
 	}
 
 	var duration time.Duration
@@ -130,7 +134,7 @@ func main() {
 		tType, err := parseTeaType(tTypeArg)
 		if err != nil {
 			fmt.Println(err.Error())
-			return
+			os.Exit(1)
 		}
 
 		duration = tType.steepTime
@@ -163,6 +167,6 @@ func main() {
 	<-timer.C
 	doneChan <- true
 
-	rdyMsg := fmt.Sprintf("Tee is ready!")
+	rdyMsg := fmt.Sprintf("Tea is ready! Enjoy :)")
 	fmt.Println(rdyMsg)
 }
