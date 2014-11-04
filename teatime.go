@@ -42,8 +42,9 @@ var tTypeArg string
 var listTeas bool
 
 const (
-	appName = "Tea Time(r)"
-	rdyMsg  = "Your tea is ready! Enjoy :)"
+	appName      = "Tea Time(r)"
+	rdyMsg       = "Your tea is ready! Enjoy :)"
+	notifTimeout = 3000
 )
 
 func printLogo() {
@@ -121,6 +122,7 @@ func printProgress(remainingTime, totalTime time.Duration) {
 func notifyReady() {
 	notify.Init(appName)
 	notif := notify.NotificationNew(appName, rdyMsg, "")
+	notif.SetTimeout(notifTimeout)
 	if notif == nil {
 		fmt.Println("Failed to create notification")
 		return
