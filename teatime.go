@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	notify "github.com/mqu/go-notify"
 	"os"
 	"strconv"
 	"strings"
@@ -39,6 +40,11 @@ var allTypes = []tea{
 var durationArg time.Duration
 var tTypeArg string
 var listTeas bool
+
+const (
+	appName = "Tea Time(r)"
+	rdyMsg  = "Your tea is ready! Enjoy :)"
+)
 
 func printLogo() {
 	fmt.Println(`
@@ -112,6 +118,23 @@ func printProgress(remainingTime, totalTime time.Duration) {
 	fmt.Printf("\r%s", progress)
 }
 
+func notifyReady() {
+	notify.Init(appName)
+	notif := notify.NotificationNew(appName, rdyMsg, "")
+	if notif == nil {
+		fmt.Println("Failed to create notification")
+		return
+	}
+
+	if err := notif.Show(); err != nil && err.GError != nil {
+		fmt.Printf("Error showing notification! Error was: %#v\n", err)
+	}
+
+	if err := notif.Close(); err != nil && err.GError != nil {
+		fmt.Printf("Error closing notification channel! Error was: %#v\n", err)
+	}
+}
+
 func main() {
 	parseFlags()
 
@@ -167,6 +190,6 @@ func main() {
 	<-timer.C
 	doneChan <- true
 
-	rdyMsg := fmt.Sprintf("Tea is ready! Enjoy :)")
+	notifyReady()
 	fmt.Println(rdyMsg)
 }
