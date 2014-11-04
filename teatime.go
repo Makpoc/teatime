@@ -166,31 +166,24 @@ func main() {
 		fmt.Println(tType)
 	}
 
-	timer := time.NewTimer(duration)
-	doneChan := make(chan bool)
+	// add one second more for the progress bar to reach 100%
+	timer := time.NewTimer(duration + time.Second)
 	remainingTime := duration
 
 	printLogo()
 
-	go func() {
-		for {
-			select {
-			case <-doneChan:
-				// print the last percent and return
-				printProgress(remainingTime, duration)
-				fmt.Println()
-				return
-			default:
-				printProgress(remainingTime, duration)
-				time.Sleep(time.Second * 1)
-				remainingTime -= time.Second * 1
-			}
+loop:
+	for {
+		select {
+		case <-timer.C:
+			fmt.Println()
+			break loop
+		default:
+			printProgress(remainingTime, duration)
+			time.Sleep(time.Second)
+			remainingTime -= time.Second
 		}
-	}()
-
-	// block
-	<-timer.C
-	doneChan <- true
+	}
 
 	notifyReady()
 	fmt.Println(rdyMsg)
