@@ -1,45 +1,70 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	notify "github.com/mqu/go-notify"
+	"io"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 )
 
+// steepTime is a time.Duration, which implements the Unmarshaler interface
+type steepTime struct {
+	time.Duration
+}
+
+// tea contains information about the type of tea as well as some details about the preparation
 type tea struct {
-	id        int
-	ttype     string
-	name      string
-	steepTime time.Duration
-	temp      int
+	Id        int       `json:"id"`
+	Ttype     string    `json:"type"`
+	Name      string    `json:"name"`
+	SteepTime steepTime `json:"steepTime"`
+	Temp      int       `json:"temp"`
 }
 
 func (t tea) String() string {
 	return fmt.Sprintf(
 		"Id:\t\t%d\nName:\t\t%s\nType:\t\t%s\nSteep Time:\t%.0f minutes\nTempreture:\t%d\u00B0",
-		t.id,
-		t.name,
-		t.ttype,
-		t.steepTime.Minutes(),
-		t.temp)
+		t.Id,
+		t.Name,
+		t.Ttype,
+		t.SteepTime.Minutes(),
+		t.Temp)
 }
 
-var allTypes = []tea{
-	tea{id: 0, ttype: "White", name: "White Dragon", steepTime: time.Minute * 2, temp: 70},
-	tea{id: 1, ttype: "Green", name: "Temple of Heaven", steepTime: time.Minute * 3, temp: 80},
-	tea{id: 2, ttype: "Green", name: "Green Dragon", steepTime: time.Minute * 3, temp: 80},
-	tea{id: 3, ttype: "Black", name: "Lapsang Souchong", steepTime: time.Minute * 3, temp: 100},
-	tea{id: 4, ttype: "Black", name: "Greenfield Magic Yunnan", steepTime: time.Minute * 7, temp: 100},
+func (t *steepTime) UnmarshalJSON(data []byte) error {
+	var s string
+
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+
+	dur, err := time.ParseDuration(s)
+	if err != nil {
+		return err
+	}
+
+	t.Duration = dur
+	return nil
+}
+
+var defaultTeas = []tea{
+	tea{Id: 0, Ttype: "White", Name: "White Dragon", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 70},
+	tea{Id: 1, Ttype: "Green", Name: "Temple of Heaven", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 80},
+	tea{Id: 2, Ttype: "Green", Name: "Green Dragon", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 80},
+	tea{Id: 3, Ttype: "Black", Name: "Lapsang Souchong", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 100},
+	tea{Id: 4, Ttype: "Black", Name: "Greenfield Magic Yunnan", SteepTime: steepTime{Duration: time.Minute * 7}, Temp: 100},
 }
 
 var durationArg time.Duration
 var tTypeArg string
 var listTeas bool
+var filePath string
 
 const (
 	appName      = "Tea Time(r)"
@@ -47,20 +72,22 @@ const (
 	notifTimeout = 3000
 )
 
+// printLogo prints the application logo on the console
 func printLogo() {
 	fmt.Println(`
       Tea Time(r)
-         ____ 
-      ,|'----'|
-     ((|      |
+         ____    ,-^-,
+      ,|'----'|  * L *
+     ((|      |  '-.-'
       \|      |
        |      |
        '------'
      ^^^^^^^^^^^^`)
 }
 
-func printTeas() {
-	for i, tType := range allTypes {
+// PrintTeas prints information about each tea on the console
+func printTeas(teas []tea) {
+	for i, tType := range teas {
 		if i != 0 {
 			fmt.Println("------")
 		}
@@ -68,40 +95,61 @@ func printTeas() {
 	}
 }
 
+// loadTeas reads the json stream and tries to decode all available teas from it. If this fails - it returns the default set of teas and an error
+func loadTeas(reader io.Reader) ([]tea, error) {
+	var allTeas []tea
+	if err := json.NewDecoder(reader).Decode(&allTeas); err != nil {
+		return defaultTeas, errors.New(fmt.Sprintf("Failed to parse file. Using default list of teas! Error was: %s", err.Error()))
+	}
+
+	return allTeas, nil
+
+}
+
+// parseFlags parses the command line flags
 func parseFlags() {
 
-	flag.StringVar(&tTypeArg, "type", "", "Type of Tea (either the name or the ID. See -list)")
+	flag.StringVar(&tTypeArg, "type", "", "Type of Tea (either the Name or the ID. See -list)")
 	flag.DurationVar(&durationArg, "duration", 0, "Tee Timer Duration. Warning: This argument has higher priority than -type!")
 	flag.BoolVar(&listTeas, "list", false, "List all available tea types and exit")
+	flag.StringVar(&filePath, "file", "", "Path to json file, containing tea specifications")
 
 	flag.Parse()
 }
 
-func parseTeaType(ttype string) (tea, error) {
-	ttype = strings.ToLower(strings.TrimSpace(ttype))
-	for _, t := range allTypes {
-		if ttype == strings.ToLower(t.name) {
+func getTeaById(id int, teas []tea) (tea, error) {
+	for _, t := range teas {
+		if id == t.Id {
 			return t, nil
 		}
 	}
 
-	errMsg := fmt.Sprintf("Unknown tea: %s", ttype)
-
-	// try to convert ttype to integer and check if an ID is provided instead
-	tId, err := strconv.Atoi(ttype)
-	if err != nil {
-		return tea{}, errors.New(errMsg)
-	}
-
-	for _, t := range allTypes {
-		if tId == t.id {
-			return t, nil
-		}
-	}
-
-	return tea{}, errors.New(errMsg)
+	return tea{}, errors.New(fmt.Sprintf("Tea with Id %d not found!", id))
 }
 
+func getTeaByName(name string, teas []tea) (tea, error) {
+	name = strings.ToLower(strings.TrimSpace(name))
+	for _, t := range teas {
+		if name == strings.ToLower(t.Name) {
+			return t, nil
+		}
+	}
+
+	return tea{}, errors.New(fmt.Sprintf("Tea with Name %s not found!", name))
+}
+
+// getTea tries to find a specific tea in the provided list of teas. If ttype is of type int - it searches by ID. Otherwise it tries to exactly match the name.
+func getTea(ttype string, teas []tea) (t tea, err error) {
+
+	// Test if ttype contains a Name or Id
+	if tId, err := strconv.Atoi(ttype); err == nil {
+		return getTeaById(tId, teas)
+	} else {
+		return getTeaByName(ttype, teas)
+	}
+}
+
+// printProgress displays a progress bar on the console.
 func printProgress(remainingTime, totalTime time.Duration) {
 	scale := 10.0
 
@@ -119,6 +167,7 @@ func printProgress(remainingTime, totalTime time.Duration) {
 	fmt.Printf("\r%s", progress)
 }
 
+// notifyReady shows a Desktop notification (if possible).
 func notifyReady() {
 	notify.Init(appName)
 	notif := notify.NotificationNew(appName, rdyMsg, "")
@@ -140,30 +189,51 @@ func notifyReady() {
 func main() {
 	parseFlags()
 
+	teas := defaultTeas
+
+	if filePath != "" {
+		// tea specs file was provided on command line - try to load it and parse it
+		f, err := os.Open(filePath)
+		defer f.Close()
+		if err != nil {
+			fmt.Printf("Failed to open file! Error was: %s\n", err.Error())
+			os.Exit(1)
+		}
+		teas, err = loadTeas(f)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		}
+	}
+
 	if listTeas {
 		printLogo()
-		printTeas()
+		printTeas(teas)
 		os.Exit(0)
 	}
 
-	if durationArg == 0 && tTypeArg == "" {
-		fmt.Errorf("No tea type/custom duration supplied!\n")
+	// verify that at least one of the arguments will set the duration. Otherwise there's no point in continuing
+	if tTypeArg == "" && durationArg == 0 {
 		flag.Usage()
 		os.Exit(1)
 	}
 
 	var duration time.Duration
-	if durationArg != 0 {
-		duration = durationArg
-	} else {
-		tType, err := parseTeaType(tTypeArg)
+	if tTypeArg != "" {
+		// specific type of tea was requested - try to find it, update the duration and display details
+		tType, err := getTea(tTypeArg, teas)
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
 		}
 
-		duration = tType.steepTime
+		duration = tType.SteepTime.Duration
 		fmt.Println(tType)
+	}
+
+	if durationArg != 0 {
+		// duration was provided on command line - overwrite the duration
+		duration = durationArg
 	}
 
 	// add one second more for the progress bar to reach 100%
@@ -172,6 +242,7 @@ func main() {
 
 	printLogo()
 
+	// main progress loop
 loop:
 	for {
 		select {

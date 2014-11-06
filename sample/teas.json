@@ -1,0 +1,37 @@
+[
+    {
+        "id": 0, 
+        "type": "White",
+        "name": "White Dragon",
+        "steepTime": "120s",
+        "temp": 70
+    },
+    {
+        "id": 1, 
+        "type": "Green",
+        "name": "Temple of Heaven",
+        "steepTime": "180s",
+        "temp": 80
+    },
+    {
+        "id": 2, 
+        "type": "Green",
+        "name": "Green Dragon",
+        "steepTime": "180s",
+        "temp": 80
+    },
+    {
+        "id": 3, 
+        "type": "Black",
+        "name": "Lapsang Souchong",
+        "steepTime": "180s",
+        "temp": 100
+    },
+    {
+        "id": 4, 
+        "type": "Black",
+        "name": "GreenField Magic Yunnan",
+        "steepTime": "180s",
+        "temp": 100
+    }
+]
