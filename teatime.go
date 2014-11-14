@@ -61,7 +61,7 @@ var defaultTeas = []tea{
 	tea{Id: 4, Ttype: "Black", Name: "Greenfield Magic Yunnan", SteepTime: steepTime{Duration: time.Minute * 7}, Temp: 100},
 }
 
-var durationArg time.Duration
+var durationArg string
 var tTypeArg string
 var listTeas bool
 var filePath string
@@ -110,11 +110,52 @@ func loadTeas(reader io.Reader) ([]tea, error) {
 func parseFlags() {
 
 	flag.StringVar(&tTypeArg, "type", "", "Type of Tea (either the Name or the ID. See -list)")
-	flag.DurationVar(&durationArg, "duration", 0, "Tee Timer Duration. Warning: This argument has higher priority than -type!")
+	flag.StringVar(&durationArg, "duration", "", "Tee Timer Duration. Can be Xs/m/h or +-Xs/m/h which will add to the -type time (required in this case) Otherwise it will overwrite it.")
+	//	flag.DurationVar(&durationArg, "duration", 0, "Tee Timer Duration. Warning: This argument has higher priority than -type!")
 	flag.BoolVar(&listTeas, "list", false, "List all available tea types and exit")
 	flag.StringVar(&filePath, "file", "", "Path to json file, containing tea specifications")
 
 	flag.Parse()
+}
+
+func getTotalDuration(selectedTea tea, customDuration string) (time.Duration, error) {
+	var baseDuration time.Duration
+	if selectedTea != (tea{}) {
+		baseDuration = selectedTea.SteepTime.Duration
+	}
+
+	var calcFunc func(time.Duration, time.Duration) (time.Duration, error)
+
+	if strings.HasPrefix(customDuration, "+") {
+		customDuration = strings.TrimLeft(customDuration, "+")
+		calcFunc = addDur
+	} else if strings.HasPrefix(customDuration, "-") {
+		customDuration = strings.TrimLeft(customDuration, "-")
+		calcFunc = subDur
+	}
+
+	customDur, err := time.ParseDuration(customDuration)
+	if err != nil {
+		return baseDuration, err
+	}
+
+	if calcFunc != nil {
+		return calcFunc(baseDuration, customDur)
+	} else {
+		return customDur, nil
+	}
+}
+
+func addDur(baseDur, customDur time.Duration) (time.Duration, error) {
+	return baseDur + customDur, nil
+}
+
+func subDur(baseDur, customDur time.Duration) (time.Duration, error) {
+	if baseDur <= customDur {
+		return baseDur, errors.New("Total duration must be positive!")
+	}
+
+	return baseDur - customDur, nil
 }
 
 func getTeaById(id int, teas []tea) (tea, error) {
@@ -186,6 +227,40 @@ func notifyReady() {
 	}
 }
 
+func getDurAndTea(allTeas []tea) (time.Duration, tea, error) {
+	var emptyDuration time.Duration
+	var emptyTea tea
+	// verify that at least one of the arguments will set the duration. Otherwise there's no point in continuing
+	if tTypeArg == "" && durationArg == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	var teaType tea
+	if tTypeArg != "" {
+		// specific type of tea was requested - try to find it, update the duration and display details
+		var err error
+		teaType, err = getTea(tTypeArg, allTeas)
+		if err != nil {
+			return emptyDuration, emptyTea, err
+		}
+	}
+
+	var duration time.Duration
+	if durationArg != "" {
+		// duration was provided on command line - overwrite the duration
+		var err error
+		duration, err = getTotalDuration(teaType, durationArg)
+		if err != nil {
+			return emptyDuration, emptyTea, err
+		}
+	} else {
+		duration = teaType.SteepTime.Duration
+	}
+
+	return duration, teaType, nil
+}
+
 func main() {
 	parseFlags()
 
@@ -212,41 +287,27 @@ func main() {
 		os.Exit(0)
 	}
 
-	// verify that at least one of the arguments will set the duration. Otherwise there's no point in continuing
-	if tTypeArg == "" && durationArg == 0 {
-		flag.Usage()
+	duration, selectedTea, err := getDurAndTea(teas)
+	if err != nil {
+		fmt.Println(err.Error())
 		os.Exit(1)
 	}
 
-	var duration time.Duration
-	if tTypeArg != "" {
-		// specific type of tea was requested - try to find it, update the duration and display details
-		tType, err := getTea(tTypeArg, teas)
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
-
-		duration = tType.SteepTime.Duration
-		fmt.Println(tType)
+	// if not empty
+	if selectedTea != (tea{}) {
+		fmt.Println(selectedTea)
 	}
-
-	if durationArg != 0 {
-		// duration was provided on command line - overwrite the duration
-		duration = durationArg
-	}
+	printLogo()
 
 	// add one second more for the progress bar to reach 100%
-	timer := time.NewTimer(duration + time.Second)
+	timeout := time.After(duration + time.Second)
 	remainingTime := duration
-
-	printLogo()
 
 	// main progress loop
 loop:
 	for {
 		select {
-		case <-timer.C:
+		case <-timeout:
 			fmt.Println()
 			break loop
 		default:
