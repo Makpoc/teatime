@@ -10,13 +10,13 @@ Installation
 ============
 Make sure you have a working golang setup and use `go get`.
 
-```bash
+```
 go get github.com/makpoc/teatime
 ```
 
 Usage
 =====
-```bash
+```
 teatime -help
 Usage of teatime:
   -duration="":     Tee timer duration. Can be Xs/m/h (overwrite -tea's default duration if given) or +-Xs/m/h (add to it)
@@ -41,7 +41,7 @@ Usage of teatime:
 
 Examples
 =======
-```bash
+```
 $ teatime -file sample/teas.json -list
 
 >       Tea Time(r)
@@ -66,7 +66,7 @@ $ teatime -file sample/teas.json -list
 > ------
 > [...]
 ```
-```bash
+```
 $ teatime -tea "Temple of Heaven" -duration +1m
 
 > Id:     1
