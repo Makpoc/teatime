@@ -32,7 +32,7 @@ func (t tea) String() string {
 	steepTimeFmt := fmt.Sprintf("%.0f minutes, %.0f seconds", steepTimeTotal/60.0, float32(int(steepTimeTotal)%60))
 
 	return fmt.Sprintf(
-		"Id:\t\t%d\nName:\t\t%s\nType:\t\t%s\nSteep Time:\t%s\nTempreture:\t%d\u00B0",
+		"Id:\t\t%d\nName:\t\t%s\nType:\t\t%s\nSteep Time:\t%s\nTemperature:\t%d\u00B0",
 		t.Id,
 		t.Name,
 		t.Ttype,
