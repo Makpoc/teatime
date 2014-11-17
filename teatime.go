@@ -28,12 +28,15 @@ type tea struct {
 }
 
 func (t tea) String() string {
+	steepTimeTotal := t.SteepTime.Seconds()
+	steepTimeFmt := fmt.Sprintf("%.0f minutes, %.0f seconds", steepTimeTotal/60.0, float32(int(steepTimeTotal)%60))
+
 	return fmt.Sprintf(
-		"Id:\t\t%d\nName:\t\t%s\nType:\t\t%s\nSteep Time:\t%.0f minutes\nTempreture:\t%d\u00B0",
+		"Id:\t\t%d\nName:\t\t%s\nType:\t\t%s\nSteep Time:\t%s\nTempreture:\t%d\u00B0",
 		t.Id,
 		t.Name,
 		t.Ttype,
-		t.SteepTime.Minutes(),
+		steepTimeFmt,
 		t.Temp)
 }
 
@@ -62,7 +65,7 @@ var defaultTeas = []tea{
 }
 
 var durationArg string
-var tTypeArg string
+var teaArg string
 var listTeas bool
 var filePath string
 
@@ -109,11 +112,10 @@ func loadTeas(reader io.Reader) ([]tea, error) {
 // parseFlags parses the command line flags
 func parseFlags() {
 
-	flag.StringVar(&tTypeArg, "type", "", "Type of Tea (either the Name or the ID. See -list)")
-	flag.StringVar(&durationArg, "duration", "", "Tee Timer Duration. Can be Xs/m/h or +-Xs/m/h which will add to the -type time (required in this case) Otherwise it will overwrite it.")
-	//	flag.DurationVar(&durationArg, "duration", 0, "Tee Timer Duration. Warning: This argument has higher priority than -type!")
-	flag.BoolVar(&listTeas, "list", false, "List all available tea types and exit")
-	flag.StringVar(&filePath, "file", "", "Path to json file, containing tea specifications")
+	flag.StringVar(&durationArg, "duration", "", "\tTee timer duration. Can be Xs/m/h (overwrite -tea's default duration if given) or +-Xs/m/h (add to it)")
+	flag.StringVar(&teaArg, "tea", "", "\t\tType of Tea to prepare (either the Name or the ID. See -list)")
+	flag.BoolVar(&listTeas, "list", false, "\t\tList all available tea types and exit with brief information about each of them")
+	flag.StringVar(&filePath, "file", "", "\t\tPath to json file, containing tea specifications")
 
 	flag.Parse()
 }
@@ -231,16 +233,16 @@ func getDurAndTea(allTeas []tea) (time.Duration, tea, error) {
 	var emptyDuration time.Duration
 	var emptyTea tea
 	// verify that at least one of the arguments will set the duration. Otherwise there's no point in continuing
-	if tTypeArg == "" && durationArg == "" {
+	if teaArg == "" && durationArg == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
 
 	var teaType tea
-	if tTypeArg != "" {
+	if teaArg != "" {
 		// specific type of tea was requested - try to find it, update the duration and display details
 		var err error
-		teaType, err = getTea(tTypeArg, allTeas)
+		teaType, err = getTea(teaArg, allTeas)
 		if err != nil {
 			return emptyDuration, emptyTea, err
 		}
