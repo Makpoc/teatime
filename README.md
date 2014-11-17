@@ -54,13 +54,13 @@ $ teatime -file sample/teas.json -list
 >        |      |
 >        '------'
 >      ^^^^^^^^^^^^
-> Id:     0
+> Id:         0
 > Name:       White Dragon
 > Type:       White
 > Steep Time: 2 minutes
 > Tempreture: 70°
 > ------
-> Id:     1
+> Id:         1
 > Name:       Temple of Heaven
 > Type:       Green
 > Steep Time: 3 minutes
