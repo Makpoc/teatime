@@ -37,7 +37,7 @@ func (t *steepTime) UnmarshalJSON(data []byte) error {
 
 // tea contains information about the type of tea as well as some details about the preparation
 type tea struct {
-	Id        int       `json:"id"`
+	ID        int       `json:"id"`
 	Ttype     string    `json:"type"`
 	Name      string    `json:"name"`
 	SteepTime steepTime `json:"steepTime"`
@@ -49,8 +49,8 @@ func (t tea) String() string {
 	steepTimeFmt := fmt.Sprintf("%.0f minutes, %.0f seconds", steepTimeTotal/60.0, float32(int(steepTimeTotal)%60))
 
 	return fmt.Sprintf(
-		"Id:\t\t%d\nName:\t\t%s\nType:\t\t%s\nSteep Time:\t%s\nTemperature:\t%d\u00B0",
-		t.Id,
+		"ID:\t\t%d\nName:\t\t%s\nType:\t\t%s\nSteep Time:\t%s\nTemperature:\t%d\u00B0",
+		t.ID,
 		t.Name,
 		t.Ttype,
 		steepTimeFmt,
@@ -58,11 +58,11 @@ func (t tea) String() string {
 }
 
 var defaultTeas = []tea{
-	{Id: 0, Ttype: "White", Name: "White Dragon", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 70},
-	{Id: 1, Ttype: "Green", Name: "Temple of Heaven", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 80},
-	{Id: 2, Ttype: "Green", Name: "Green Dragon", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 80},
-	{Id: 3, Ttype: "Black", Name: "Lapsang Souchong", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 100},
-	{Id: 4, Ttype: "Black", Name: "Greenfield Magic Yunnan", SteepTime: steepTime{Duration: time.Minute * 7}, Temp: 100},
+	{ID: 0, Ttype: "White", Name: "White Dragon", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 70},
+	{ID: 1, Ttype: "Green", Name: "Temple of Heaven", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 80},
+	{ID: 2, Ttype: "Green", Name: "Green Dragon", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 80},
+	{ID: 3, Ttype: "Black", Name: "Lapsang Souchong", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 100},
+	{ID: 4, Ttype: "Black", Name: "Greenfield Magic Yunnan", SteepTime: steepTime{Duration: time.Minute * 7}, Temp: 100},
 }
 
 var durationArg string
@@ -103,7 +103,7 @@ func printTeas(teas []tea) {
 func loadTeas(reader io.Reader) ([]tea, error) {
 	var allTeas []tea
 	if err := json.NewDecoder(reader).Decode(&allTeas); err != nil {
-		return defaultTeas, errors.New(fmt.Sprintf("Failed to parse file. Using default list of teas! Error was: %s", err.Error()))
+		return defaultTeas, fmt.Errorf("Failed to parse file. Using default list of teas! Error was: %s", err.Error())
 	}
 
 	return allTeas, nil
@@ -144,9 +144,9 @@ func getTotalDuration(selectedTea tea, customDuration string) (time.Duration, er
 
 	if calcFunc != nil {
 		return calcFunc(baseDuration, customDur)
-	} else {
-		return customDur, nil
 	}
+
+	return customDur, nil
 }
 
 func addDur(baseDur, customDur time.Duration) (time.Duration, error) {
@@ -161,14 +161,14 @@ func subDur(baseDur, customDur time.Duration) (time.Duration, error) {
 	return baseDur - customDur, nil
 }
 
-func getTeaById(id int, teas []tea) (tea, error) {
+func getTeaByID(id int, teas []tea) (tea, error) {
 	for _, t := range teas {
-		if id == t.Id {
+		if id == t.ID {
 			return t, nil
 		}
 	}
 
-	return tea{}, errors.New(fmt.Sprintf("Tea with Id %d not found!", id))
+	return tea{}, fmt.Errorf("Tea with ID %d not found!", id)
 }
 
 func getTeaByName(name string, teas []tea) (tea, error) {
@@ -179,18 +179,18 @@ func getTeaByName(name string, teas []tea) (tea, error) {
 		}
 	}
 
-	return tea{}, errors.New(fmt.Sprintf("Tea with Name %s not found!", name))
+	return tea{}, fmt.Errorf("Tea with Name %s not found!", name)
 }
 
 // getTea tries to find a specific tea in the provided list of teas. If ttype is of type int - it searches by ID. Otherwise it tries to exactly match the name.
 func getTea(ttype string, teas []tea) (t tea, err error) {
 
-	// Test if ttype contains a Name or Id
-	if tId, err := strconv.Atoi(ttype); err == nil {
-		return getTeaById(tId, teas)
-	} else {
-		return getTeaByName(ttype, teas)
+	// Test if ttype contains a Name or ID
+	if tID, err := strconv.Atoi(ttype); err == nil {
+		return getTeaByID(tID, teas)
 	}
+
+	return getTeaByName(ttype, teas)
 }
 
 // printProgress displays a progress bar on the console.
