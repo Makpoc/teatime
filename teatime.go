@@ -5,17 +5,34 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	notify "github.com/mqu/go-notify"
 	"io"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	notify "github.com/mqu/go-notify"
 )
 
 // steepTime is a time.Duration, which implements the Unmarshaler interface
 type steepTime struct {
 	time.Duration
+}
+
+func (t *steepTime) UnmarshalJSON(data []byte) error {
+	var s string
+
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+
+	dur, err := time.ParseDuration(s)
+	if err != nil {
+		return err
+	}
+
+	t.Duration = dur
+	return nil
 }
 
 // tea contains information about the type of tea as well as some details about the preparation
@@ -40,28 +57,12 @@ func (t tea) String() string {
 		t.Temp)
 }
 
-func (t *steepTime) UnmarshalJSON(data []byte) error {
-	var s string
-
-	if err := json.Unmarshal(data, &s); err != nil {
-		return err
-	}
-
-	dur, err := time.ParseDuration(s)
-	if err != nil {
-		return err
-	}
-
-	t.Duration = dur
-	return nil
-}
-
 var defaultTeas = []tea{
-	tea{Id: 0, Ttype: "White", Name: "White Dragon", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 70},
-	tea{Id: 1, Ttype: "Green", Name: "Temple of Heaven", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 80},
-	tea{Id: 2, Ttype: "Green", Name: "Green Dragon", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 80},
-	tea{Id: 3, Ttype: "Black", Name: "Lapsang Souchong", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 100},
-	tea{Id: 4, Ttype: "Black", Name: "Greenfield Magic Yunnan", SteepTime: steepTime{Duration: time.Minute * 7}, Temp: 100},
+	{Id: 0, Ttype: "White", Name: "White Dragon", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 70},
+	{Id: 1, Ttype: "Green", Name: "Temple of Heaven", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 80},
+	{Id: 2, Ttype: "Green", Name: "Green Dragon", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 80},
+	{Id: 3, Ttype: "Black", Name: "Lapsang Souchong", SteepTime: steepTime{Duration: time.Minute * 2}, Temp: 100},
+	{Id: 4, Ttype: "Black", Name: "Greenfield Magic Yunnan", SteepTime: steepTime{Duration: time.Minute * 7}, Temp: 100},
 }
 
 var durationArg string
